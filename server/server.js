@@ -22,7 +22,9 @@ app.get("/api/get/:name", (req, res) => {
   const sqlSelect = "SELECT * FROM type WHERE name = ?";
   connection.query(sqlSelect, name, (error, result) => {
     if (error) throw error;
+    console.log("データベース接続成功");
     res.status(200).json(result);
+    console.log("処理が完了したため接続を終了します。");
   });
 });
 
