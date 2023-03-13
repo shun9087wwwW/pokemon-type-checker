@@ -1,88 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import List from "./List";
-import axios from "axios";
-import { useHandleSearch } from "./../hooks/useHandleSearch";
+import db from "../firebase";
+import { collection, onSnapshot } from "firebase/firestore";
 
 const Search = () => {
-  // hooks
-  const {
-    fourfold,
-    twofold,
-    half,
-    quarter,
-    unaffected,
-    setFourfold,
-    setTwofold,
-    setHalf,
-    setQuarter,
-    setUnaffected,
-  } = useHandleSearch();
+  // state
+  const [types, setTypes] = useState([]);
+  const [pickUp, setPickUp] = useState([]);
+
+  useEffect(() => {
+    // データベースから取得する
+    const typeData = collection(db, "type");
+
+    // リアルタイムで取得し、配列stateに格納する
+    onSnapshot(typeData, (type) => {
+      setTypes(type.docs.map((doc) => ({ ...doc.data() })));
+    });
+  }, []);
 
   //state
-  const [form1, setForm1] = useState("");
-  const [form2, setForm2] = useState("");
+  const [form, setForm] = useState("");
 
   // 関数
-  const handleSelect1 = (e) => {
-    console.log("form1:" + e.target.value);
-    setForm1(e.target.value);
+  const handleSelect = (e) => {
+    try {
+      if (e.target.value === "タイプを選んでください") {
+        alert("この選択肢は使えません");
+      } else {
+        setForm(e.target.value);
+        // 単タイプ
+        if (form) {
+          // 選択されたタイプを判別
+          if (types.map((type) => type.name).includes(form)) {
+            // trueならそのタイプのオブジェクトのみ取り出す。
+            setPickUp(types.filter((type) => type.name === form));
+          }
+        }
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
-  const handleSelect2 = (e) => {
-    console.log("form2:" + e.target.value);
-    setForm2(e.target.value);
-  };
-  const handleClick = async (e) => {
+
+  const handleClick = (e) => {
     // 中身が消えないために
     e.preventDefault();
-
     try {
-      if (form1 && form2) {
-        const merged = form1 + form2;
-        console.log("結合されました。" + merged);
-
-        // 複合タイプをとってくる
-        const data = { name: merged };
-        console.log(data);
-        console.log("送信されるタイプ：" + data.name);
-
-        // axiosでサーバーへ送信
-        await axios
-          .get(`http://localhost:5000/api/get/${data.name}`, {
-            name: merged,
-          })
-          .then((res) => {
-            console.log(res.data[0]);
-            setFourfold(res.data[0].fourfold);
-            setTwofold(res.data[0].twofold);
-            setHalf(res.data[0].half);
-            setQuarter(res.data[0].quarter);
-            setUnaffected(res.data[0].unaffected);
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      } else if (form1 && !form2) {
-        console.log("単タイプの相性をデータベースからとってきます");
-        const type = form1;
-        const data = { name: type };
-        console.log("送信されるタイプ：" + data.name);
-
-        // axiosでサーバーへ送信
-        await axios
-          .get(`http://localhost:5000/api/get/${data.name}`, {
-            name: type,
-          })
-          .then((res) => {
-            console.log(res.data[0]);
-            setTwofold(res.data[0].twofold);
-            setHalf(res.data[0].half);
-            setUnaffected(res.data[0].unaffected);
-          })
-          .catch((err) => {
-            console.log(err);
-          });
+      // 単タイプ
+      if (form) {
+        // 選択されたタイプを判別
+        if (types.map((type) => type.name).includes(form)) {
+          // trueならそのタイプのオブジェクトのみ取り出す。
+          setPickUp(types.filter((type) => type.name === form));
+        }
       }
     } catch (error) {
       console.log(error);
@@ -94,7 +66,7 @@ const Search = () => {
     <div className="searchBox container-fluid w-100 p-2">
       {/* 説明書きここから */}
       <div
-        className="usageBox container p-2 mb-3 d-flex flex-column text-center"
+        className="usageBox container p-2 mt-4 mb-3 d-flex flex-column text-center"
         style={{ backgroundColor: "rgba(31,123,255,0.1)" }}
       >
         <p className="h6 pb-2">
@@ -104,9 +76,10 @@ const Search = () => {
         <p className="m-0">
           <small>弱点を知りたいポケモンのタイプを入力してください</small>
         </p>
-        <p className="mb-3">
+        <p className="mb-3 text-danger">
           <small>
-            <span>タイプが2つあるものも調べることができます</span>
+            <span>複数タイプの相性表は今後実装予定です</span>
+            {/* <span>複数タイプの相性表は一番下に表示されます</span> */}
           </small>
         </p>
       </div>
@@ -121,7 +94,7 @@ const Search = () => {
         autoComplete="off"
         className="formBox d-flex flex-column align-items-center"
       >
-        <select className="form-select" onChange={(e) => handleSelect1(e)}>
+        <select className="form-select" onChange={(e) => handleSelect(e)}>
           <option>タイプを選んでください</option>
           <option defaultValue="ノーマル">ノーマル</option>
           <option defaultValue="ほのお">ほのお</option>
@@ -141,26 +114,7 @@ const Search = () => {
           <option defaultValue="はがね">はがね</option>
           <option defaultValue="フェアリー">フェアリー</option>
         </select>
-        <select className="form-select" onChange={(e) => handleSelect2(e)}>
-          <option>タイプを選んでください</option>
-          <option defaultValue="ノーマル">ノーマル</option>
-          <option defaultValue="ほのお">ほのお</option>
-          <option defaultValue="みず">みず</option>
-          <option defaultValue="でんき">でんき</option>
-          <option defaultValue="くさ">くさ</option>
-          <option defaultValue="こおり">こおり</option>
-          <option defaultValue="かくとう">かくとう</option>
-          <option defaultValue="どく">どく</option>
-          <option defaultValue="じめん">じめん</option>
-          <option defaultValue="ひこう">ひこう</option>
-          <option defaultValue="エスパー">エスパー</option>
-          <option defaultValue="むし">むし</option>
-          <option defaultValue="いわ">いわ</option>
-          <option defaultValue="ゴースト">ゴースト</option>
-          <option defaultValue="ドラゴン">ドラゴン</option>
-          <option defaultValue="はがね">はがね</option>
-          <option defaultValue="フェアリー">フェアリー</option>
-        </select>
+
         <div className="d-grid gap-2 mx-auto">
           <button
             className="btn btn-primary"
@@ -175,13 +129,7 @@ const Search = () => {
       <hr />
 
       {/* 検索結果ここから */}
-      <List
-        fourfold={fourfold}
-        twofold={twofold}
-        half={half}
-        quarter={quarter}
-        unaffected={unaffected}
-      />
+      <List pickUp={pickUp} />
     </div>
   );
 };
